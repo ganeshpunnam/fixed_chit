@@ -1,53 +1,74 @@
+
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+
 require('dotenv').config();
 
 const app = express();
 
-// =====================================================
-// DATABASE
-// =====================================================
+/* =========================================================
+   DATABASE
+========================================================= */
 
 connectDB();
 
-// =====================================================
-// CORS CONFIGURATION
-// =====================================================
+/* =========================================================
+   CORS
+========================================================= */
 
 const FRONTEND_URL = 'https://fixedchitfrontend.vercel.app';
 
 const corsOptions = {
   origin: FRONTEND_URL,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+
+  methods: [
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS'
+  ],
+
   allowedHeaders: [
     'Origin',
     'X-Requested-With',
     'Content-Type',
     'Accept',
-    'Authorization'
+    'Authorization',
+    'x-auth-token'
   ],
+
   optionsSuccessStatus: 204
 };
 
-// CORS middleware
 app.use(cors(corsOptions));
 
-// =====================================================
-// EXPLICIT PREFLIGHT HANDLER
-// =====================================================
-
+/*
+  Explicit CORS headers.
+  This is especially useful for Render + browser preflight requests.
+*/
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', FRONTEND_URL);
-  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header(
+    'Access-Control-Allow-Origin',
+    FRONTEND_URL
+  );
+
+  res.header(
+    'Access-Control-Allow-Credentials',
+    'true'
+  );
+
   res.header(
     'Access-Control-Allow-Methods',
     'GET,POST,PUT,PATCH,DELETE,OPTIONS'
   );
+
   res.header(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-auth-token'
   );
 
   if (req.method === 'OPTIONS') {
@@ -57,25 +78,30 @@ app.use((req, res, next) => {
   next();
 });
 
-// =====================================================
-// BODY PARSER
-// =====================================================
+/* =========================================================
+   BODY PARSERS
+========================================================= */
 
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// =====================================================
-// REQUEST LOGGING
-// =====================================================
+app.use(
+  express.urlencoded({
+    extended: true
+  })
+);
+
+/* =========================================================
+   REQUEST LOGGER
+========================================================= */
 
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.originalUrl}`);
   next();
 });
 
-// =====================================================
-// IMPORT ROUTES
-// =====================================================
+/* =========================================================
+   ROUTES
+========================================================= */
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -85,9 +111,9 @@ const installmentRoutes = require('./routes/installments');
 const reportRoutes = require('./routes/reports');
 const memberRoutes = require('./routes/member');
 
-// =====================================================
-// API ROUTES
-// =====================================================
+/* =========================================================
+   API ROUTES
+========================================================= */
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -97,20 +123,10 @@ app.use('/api/installments', installmentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/member', memberRoutes);
 
-// =====================================================
-// FRONTEND COMPATIBILITY ROUTES
-//
-// Existing frontend URLs:
-//
-// /auth/member/login
-// /auth/admin/login
-// /users
-// /schemes
-// /schememembers
-// /installments
-// /reports
-// /member
-// =====================================================
+/* =========================================================
+   FRONTEND COMPATIBILITY ROUTES
+   Existing Vercel frontend uses these URLs without /api
+========================================================= */
 
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
@@ -120,9 +136,9 @@ app.use('/installments', installmentRoutes);
 app.use('/reports', reportRoutes);
 app.use('/member', memberRoutes);
 
-// =====================================================
-// ROOT HEALTH CHECK
-// =====================================================
+/* =========================================================
+   ROOT ROUTE
+========================================================= */
 
 app.get('/', (req, res) => {
   res.status(200).json({
@@ -131,9 +147,9 @@ app.get('/', (req, res) => {
   });
 });
 
-// =====================================================
-// HEALTH CHECK
-// =====================================================
+/* =========================================================
+   HEALTH CHECK
+========================================================= */
 
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -142,9 +158,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// =====================================================
-// 404 HANDLER
-// =====================================================
+/* =========================================================
+   404 HANDLER
+========================================================= */
 
 app.use((req, res) => {
   res.status(404).json({
@@ -153,16 +169,22 @@ app.use((req, res) => {
   });
 });
 
-// =====================================================
-// ERROR HANDLER
-// =====================================================
+/* =========================================================
+   ERROR HANDLER
+========================================================= */
 
 app.use((err, req, res, next) => {
   console.error('Server Error:', err);
 
-  // Always send CORS headers on errors
-  res.header('Access-Control-Allow-Origin', FRONTEND_URL);
-  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header(
+    'Access-Control-Allow-Origin',
+    FRONTEND_URL
+  );
+
+  res.header(
+    'Access-Control-Allow-Credentials',
+    'true'
+  );
 
   res.status(err.status || 500).json({
     success: false,
@@ -170,9 +192,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// =====================================================
-// START SERVER
-// =====================================================
+/* =========================================================
+   SERVER
+========================================================= */
 
 const PORT = process.env.PORT || 5000;
 
