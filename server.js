@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
@@ -6,25 +5,49 @@ require('dotenv').config();
 
 const app = express();
 
-// ==========================================
-// MongoDB
-// ==========================================
+// =====================================================
+// CONNECT TO MONGODB
+// =====================================================
 connectDB();
 
-// ==========================================
-// CORS
-// ==========================================
+// =====================================================
+// CORS CONFIGURATION
+// =====================================================
 
-// Allow requests from your Vercel frontend
-// and localhost during development.
-//
-// origin: true reflects the requesting origin,
-// which also makes the OPTIONS preflight work.
+const allowedOrigins = [
+  'https://fixedchitfrontend.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
 app.use(
   cors({
-    origin: true,
+    origin: function (origin, callback) {
+      // Allow requests without Origin
+      // Example: Postman, curl, server-to-server
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.log('Blocked CORS origin:', origin);
+      return callback(new Error('Not allowed by CORS'));
+    },
+
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+
+    methods: [
+      'GET',
+      'POST',
+      'PUT',
+      'PATCH',
+      'DELETE',
+      'OPTIONS'
+    ],
+
     allowedHeaders: [
       'Origin',
       'X-Requested-With',
@@ -32,21 +55,22 @@ app.use(
       'Accept',
       'Authorization'
     ],
+
     optionsSuccessStatus: 204
   })
 );
 
-// Explicitly handle OPTIONS preflight requests
-app.options('*', cors());
+// =====================================================
+// BODY PARSER
+// =====================================================
 
-// ==========================================
-// Body Parser
-// ==========================================
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// ==========================================
-// Import Routes
-// ==========================================
+// =====================================================
+// IMPORT ROUTES
+// =====================================================
+
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const schemeRoutes = require('./routes/schemes');
@@ -55,11 +79,10 @@ const installmentRoutes = require('./routes/installments');
 const reportRoutes = require('./routes/reports');
 const memberRoutes = require('./routes/member');
 
-// ==========================================
-// API Routes
-// ==========================================
+// =====================================================
+// API ROUTES
+// =====================================================
 
-// Original API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/schemes', schemeRoutes);
@@ -68,48 +91,54 @@ app.use('/api/installments', installmentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/member', memberRoutes);
 
-// ==========================================
-// Frontend Compatibility Routes
-// ==========================================
-// Your existing frontend uses these URLs.
-// Therefore, we keep them working without
-// changing the frontend.
+// =====================================================
+// FRONTEND COMPATIBILITY ROUTES
+//
+// Your existing Vercel frontend uses:
+// /auth/member/login
+// /auth/admin/login
+// /schemes
+// /users
+// etc.
+//
+// So we keep these URLs working.
+// =====================================================
 
-// Authentication
 app.use('/auth', authRoutes);
-
-// Users
 app.use('/users', userRoutes);
-
-// Schemes
 app.use('/schemes', schemeRoutes);
-
-// Scheme Members
 app.use('/schememembers', schemeMemberRoutes);
-
-// Installments
 app.use('/installments', installmentRoutes);
-
-// Reports
 app.use('/reports', reportRoutes);
-
-// Members
 app.use('/member', memberRoutes);
 
-// ==========================================
-// Health Check
-// ==========================================
+// =====================================================
+// HEALTH CHECK
+// =====================================================
+
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Chit Fund API is running',
-    status: 'OK'
+    environment: process.env.NODE_ENV || 'production'
   });
 });
 
-// ==========================================
-// 404 Handler
-// ==========================================
+// =====================================================
+// API HEALTH CHECK
+// =====================================================
+
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Server is healthy'
+  });
+});
+
+// =====================================================
+// 404 HANDLER
+// =====================================================
+
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -117,11 +146,12 @@ app.use((req, res) => {
   });
 });
 
-// ==========================================
-// Error Handler
-// ==========================================
+// =====================================================
+// ERROR HANDLER
+// =====================================================
+
 app.use((err, req, res, next) => {
-  console.error('Server Error:', err);
+  console.error('Server Error:', err.message);
 
   // CORS error
   if (err.message === 'Not allowed by CORS') {
@@ -131,15 +161,16 @@ app.use((err, req, res, next) => {
     });
   }
 
-  res.status(500).json({
+  res.status(err.status || 500).json({
     success: false,
-    message: 'Internal server error'
+    message: err.message || 'Internal Server Error'
   });
 });
 
-// ==========================================
-// Start Server
-// ==========================================
+// =====================================================
+// START SERVER
+// =====================================================
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
