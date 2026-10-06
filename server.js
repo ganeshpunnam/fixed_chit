@@ -6,59 +6,56 @@ require('dotenv').config();
 const app = express();
 
 // =====================================================
-// CONNECT TO MONGODB
+// DATABASE
 // =====================================================
+
 connectDB();
 
 // =====================================================
 // CORS CONFIGURATION
 // =====================================================
 
-const allowedOrigins = [
-  'https://fixedchitfrontend.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:3000'
-];
+const FRONTEND_URL = 'https://fixedchitfrontend.vercel.app';
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      // Allow requests without Origin
-      // Example: Postman, curl, server-to-server
-      if (!origin) {
-        return callback(null, true);
-      }
+const corsOptions = {
+  origin: FRONTEND_URL,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization'
+  ],
+  optionsSuccessStatus: 204
+};
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+// CORS middleware
+app.use(cors(corsOptions));
 
-      console.log('Blocked CORS origin:', origin);
-      return callback(new Error('Not allowed by CORS'));
-    },
+// =====================================================
+// EXPLICIT PREFLIGHT HANDLER
+// =====================================================
 
-    credentials: true,
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', FRONTEND_URL);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header(
+    'Access-Control-Allow-Methods',
+    'GET,POST,PUT,PATCH,DELETE,OPTIONS'
+  );
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+  );
 
-    methods: [
-      'GET',
-      'POST',
-      'PUT',
-      'PATCH',
-      'DELETE',
-      'OPTIONS'
-    ],
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
 
-    allowedHeaders: [
-      'Origin',
-      'X-Requested-With',
-      'Content-Type',
-      'Accept',
-      'Authorization'
-    ],
-
-    optionsSuccessStatus: 204
-  })
-);
+  next();
+});
 
 // =====================================================
 // BODY PARSER
@@ -66,6 +63,15 @@ app.use(
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// =====================================================
+// REQUEST LOGGING
+// =====================================================
+
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // =====================================================
 // IMPORT ROUTES
@@ -94,14 +100,16 @@ app.use('/api/member', memberRoutes);
 // =====================================================
 // FRONTEND COMPATIBILITY ROUTES
 //
-// Your existing Vercel frontend uses:
+// Existing frontend URLs:
+//
 // /auth/member/login
 // /auth/admin/login
-// /schemes
 // /users
-// etc.
-//
-// So we keep these URLs working.
+// /schemes
+// /schememembers
+// /installments
+// /reports
+// /member
 // =====================================================
 
 app.use('/auth', authRoutes);
@@ -113,19 +121,18 @@ app.use('/reports', reportRoutes);
 app.use('/member', memberRoutes);
 
 // =====================================================
-// HEALTH CHECK
+// ROOT HEALTH CHECK
 // =====================================================
 
 app.get('/', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Chit Fund API is running',
-    environment: process.env.NODE_ENV || 'production'
+    message: 'Chit Fund API is running'
   });
 });
 
 // =====================================================
-// API HEALTH CHECK
+// HEALTH CHECK
 // =====================================================
 
 app.get('/health', (req, res) => {
@@ -151,15 +158,11 @@ app.use((req, res) => {
 // =====================================================
 
 app.use((err, req, res, next) => {
-  console.error('Server Error:', err.message);
+  console.error('Server Error:', err);
 
-  // CORS error
-  if (err.message === 'Not allowed by CORS') {
-    return res.status(403).json({
-      success: false,
-      message: 'CORS origin not allowed'
-    });
-  }
+  // Always send CORS headers on errors
+  res.header('Access-Control-Allow-Origin', FRONTEND_URL);
+  res.header('Access-Control-Allow-Credentials', 'true');
 
   res.status(err.status || 500).json({
     success: false,
@@ -173,7 +176,6 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
-
